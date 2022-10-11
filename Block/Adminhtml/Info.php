@@ -34,7 +34,7 @@ class Info extends \Magento\Backend\Block\Template
      */
     private $escaper;
 
-
+    private $logOrganization;
 
     /**
      * @param \Magento\Backend\Block\Template\Context $context
@@ -50,12 +50,14 @@ class Info extends \Magento\Backend\Block\Template
         ModuleListInterface $moduleList,
         ProductMetadataInterface $productMetadataInterface,
         Escaper $escaper,
+        LogOrganization $logOrganization,
         array $data = []
     ) {
         $this->fbeHelper = $fbeHelper;
         $this->moduleList = $moduleList;
         $this->productMetadataInterface = $productMetadataInterface;
         $this->escaper = $escaper;
+        $this->logOrganization = $logOrganization;
         parent::__construct($context, $data);
     }
 
@@ -91,7 +93,7 @@ class Info extends \Magento\Backend\Block\Template
     }
 
     public function allLogs() {
-        $sortedString = implode("\n", LogOrganization::organizeLogs());
+        $sortedString = implode("\n", $this->logOrganization->organizeLogs());
         return nl2br($sortedString);
     }
 

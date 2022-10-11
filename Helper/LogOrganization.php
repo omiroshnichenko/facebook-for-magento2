@@ -8,6 +8,9 @@
  */
 namespace Facebook\BusinessExtension\Helper;
 
+use Magento\Framework\App\Filesystem\DirectoryList;
+use Magento\Framework\Filesystem;
+
 class LogOrganization
 {
     // 4096 -- Good balance for tracking backwards
@@ -15,16 +18,25 @@ class LogOrganization
 
     static $criticalLines = array();
 
-    public static function organizeLogs() {
-        $arrayOfFiles = array("var/log/debug.log", "var/log/cron.log", "var/log/magento.cron.log", "var/log/system.log");
+    private $varDirectory;
+
+    public function __construct(
+        Filesystem $filesystem
+    ) {
+        $this->varDirectory = $filesystem->getDirectoryWrite(DirectoryList::VAR_DIR);
+    }
+
+    public function organizeLogs() {
+        $driver = $this->varDirectory->getDriver();
+        $arrayOfFiles = array("log/debug.log", "log/cron.log", "log/magento.cron.log", "log/system.log");
         $countCrit = 0;
 
         foreach($arrayOfFiles as $value) {
             if (!file_exists($value)) {
                 continue;
             }
-
-            $fp = fopen($value, 'r');
+            $absolutePath = $driver->getAbsolutePath($this->varDirectory->getAbsolutePath(), $value);
+            $fp = $driver->fileOpen($absolutePath, 'r');
             $pos = -2; // Skip final new line character (Set to -1 if not present)
             $currentLine = '';
 
@@ -70,10 +82,10 @@ class LogOrganization
             }
 
             $countCrit = 0;
+            $driver->fileClose($fp);
         }
-        fclose($fp);
 
-        $amuLogs = self::tailCustom("var/log/facebook-business-extension.log", 100);
+        $amuLogs = $this->tailCustom("log/facebook-business-extension.log", 100);
         $amuLogsArr = explode("\n", $amuLogs);
         self::$criticalLines = array_merge(self::$criticalLines, $amuLogsArr);
 
@@ -87,8 +99,14 @@ class LogOrganization
         return self::$criticalLines;
     }
 
-    public static function tailCustom($filepath, $lines) {
-        $f = fopen($filepath, "rb");
+    public function tailCustom($filepath, $lines) {
+        $driver = $this->varDirectory->getDriver();
+        $absolutePath = $driver->getAbsolutePath($this->varDirectory->getAbsolutePath(), $filepath);
+        try {
+            $f = $driver->fileOpen($absolutePath, "rb");
+        } catch (\Exception $e) {
+            return false;
+        }
         if ($f === false) {
             return false;
         }
@@ -113,7 +131,7 @@ class LogOrganization
             $output = substr($output, strpos($output, "\n") + 1);
         }
 
-        fclose($f);
+        $driver->fileClose($f);
         return trim($output);
     }
 }
